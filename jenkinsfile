@@ -30,26 +30,31 @@ pipeline {
 
         stage('Package App') {
             steps {
-                sh 'rm -f build.zip'
-                sh 'zip -r build.zip frontend/build backend'
+                sh '''
+                    rm -f ${WORKSPACE}/build.zip
+                    zip -r ${WORKSPACE}/build.zip frontend/build backend
+                '''
             }
         }
 
         stage('Deploy to Server') {
             steps {
                 sh '''
-                ssh -i /var/lib/jenkins/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@13.218.27.236 << 'EOF'
-                mkdir -p /home/ubuntu/fullstack-app
-                EOF
+                    echo "Checking if SSH key is accessible..."
+                    ls -l ${PRIVATE_KEY}
 
-                scp -i /var/lib/jenkins/.ssh/id_rsa -o StrictHostKeyChecking=no build.zip ubuntu@13.218.27.236:/home/ubuntu/fullstack-app/
+                    echo "Creating remote directory..."
+                    ssh -i ${PRIVATE_KEY} -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "mkdir -p ${DEPLOY_DIR}"
 
-                ssh -i /var/lib/jenkins/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@13.218.27.236 << 'EOF'
-                cd /home/ubuntu/fullstack-app
-                unzip -o build.zip
-                # Optional: restart your app
-                # pm2 restart all
-                EOF
+                    echo "Copying build.zip to remote server..."
+                    scp -i ${PRIVATE_KEY} -o StrictHostKeyChecking=no ${WORKSPACE}/build.zip ${REMOTE_USER}@${REMOTE_HOST}:${DEPLOY_DIR}/
+
+                    echo "Unzipping and deploying on remote server..."
+                    ssh -i ${PRIVATE_KEY} -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} "
+                        cd ${DEPLOY_DIR} &&
+                        unzip -o build.zip &&
+                        echo '✅ Deployment complete on server'
+                    "
                 '''
             }
         }
