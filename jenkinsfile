@@ -2,14 +2,14 @@ pipeline {
     agent any
 
     environment {
-        DEPLOY_SERVER = "ubuntu@your-server-ip"
+        DEPLOY_SERVER = "ubuntu@13.218.27.236"
         APP_DIR = "/var/www/fullstack-app"
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/yourusername/fullstack-app.git'
+                git branch: 'main', url: 'https://github.com/Murugan6892/fullstack-app-jenkins.git'
             }
         }
 
@@ -43,15 +43,25 @@ pipeline {
 
         stage('Deploy to Server') {
             steps {
-                sshagent(['your-ssh-credentials-id']) {
+                sshagent(['server-deploy-key']) {
                     sh """
                         scp build.zip $DEPLOY_SERVER:/tmp/
                         ssh $DEPLOY_SERVER '
+                            # Create deployment directory
                             sudo mkdir -p $APP_DIR &&
                             sudo unzip -o /tmp/build.zip -d $APP_DIR &&
+
+                            # Install backend dependencies
                             cd $APP_DIR/backend &&
                             npm install &&
-                            pm2 restart all || pm2 start server.js
+
+                            # Restart or start backend
+                            pm2 restart all || pm2 start server.js &&
+
+                            # Setup frontend with Nginx
+                            sudo rm -rf /var/www/html/* &&
+                            sudo cp -r $APP_DIR/frontend/build/* /var/www/html/ &&
+                            sudo systemctl restart nginx
                         '
                     """
                 }
@@ -61,7 +71,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment successful!"
+            echo "✅ Deployment successful! Visit http://13.218.27.236"
         }
         failure {
             echo "❌ Deployment failed!"
