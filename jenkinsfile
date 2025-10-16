@@ -2,8 +2,10 @@ pipeline {
     agent any
 
     environment {
-        DEPLOY_SERVER = "ubuntu@13.218.27.236"
-        APP_DIR = "/var/www/fullstack-app"
+        REMOTE_USER = 'ubuntu'
+        REMOTE_HOST = '13.218.27.236'
+        DEPLOY_DIR = '/home/ubuntu/fullstack-app'
+        PRIVATE_KEY = '/var/lib/jenkins/.ssh/id_rsa'
     }
 
     stages {
@@ -15,66 +17,45 @@ pipeline {
 
         stage('Install Dependencies') {
             steps {
-                dir('frontend') {
-                    sh 'npm install'
-                }
-                dir('backend') {
-                    sh 'npm install'
-                }
+                dir('frontend') { sh 'npm install' }
+                dir('backend')  { sh 'npm install' }
             }
         }
 
         stage('Build Frontend') {
             steps {
-                dir('frontend') {
-                    sh 'npm run build'
-                }
+                dir('frontend') { sh 'npm run build' }
             }
         }
 
         stage('Package App') {
             steps {
-                sh '''
-                    rm -f build.zip
-                    zip -r build.zip frontend/build backend
-                '''
+                sh 'rm -f build.zip'
+                sh 'zip -r build.zip frontend/build backend'
             }
         }
 
         stage('Deploy to Server') {
             steps {
-                sshagent(['server-deploy-key']) {
-                    sh """
-                        scp build.zip $DEPLOY_SERVER:/tmp/
-                        ssh $DEPLOY_SERVER '
-                            # Create deployment directory
-                            sudo mkdir -p $APP_DIR &&
-                            sudo unzip -o /tmp/build.zip -d $APP_DIR &&
-
-                            # Install backend dependencies
-                            cd $APP_DIR/backend &&
-                            npm install &&
-
-                            # Restart or start backend
-                            pm2 restart all || pm2 start server.js &&
-
-                            # Setup frontend with Nginx
-                            sudo rm -rf /var/www/html/* &&
-                            sudo cp -r $APP_DIR/frontend/build/* /var/www/html/ &&
-                            sudo systemctl restart nginx
-                        '
-                    """
-                }
+                sh """
+                    ssh -i ${PRIVATE_KEY} -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} '
+                        mkdir -p ${DEPLOY_DIR} &&
+                        exit
+                    '
+                    scp -i ${PRIVATE_KEY} -o StrictHostKeyChecking=no build.zip ${REMOTE_USER}@${REMOTE_HOST}:${DEPLOY_DIR}/
+                    ssh -i ${PRIVATE_KEY} -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} '
+                        cd ${DEPLOY_DIR} &&
+                        unzip -o build.zip &&
+                        # Optional: restart your app, for example using pm2
+                        # pm2 restart all
+                    '
+                """
             }
         }
     }
 
     post {
-        success {
-            echo "✅ Deployment successful! Visit http://13.218.27.236"
-        }
-        failure {
-            echo "❌ Deployment failed!"
-        }
+        success { echo '✅ Deployment successful!' }
+        failure { echo '❌ Deployment failed!' }
     }
 }
