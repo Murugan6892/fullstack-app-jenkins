@@ -37,19 +37,20 @@ pipeline {
 
         stage('Deploy to Server') {
             steps {
-                sh """
-                    ssh -i ${PRIVATE_KEY} -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} '
-                        mkdir -p ${DEPLOY_DIR} &&
-                        exit
-                    '
-                    scp -i ${PRIVATE_KEY} -o StrictHostKeyChecking=no build.zip ${REMOTE_USER}@${REMOTE_HOST}:${DEPLOY_DIR}/
-                    ssh -i ${PRIVATE_KEY} -o StrictHostKeyChecking=no ${REMOTE_USER}@${REMOTE_HOST} '
-                        cd ${DEPLOY_DIR} &&
-                        unzip -o build.zip &&
-                        # Optional: restart your app, for example using pm2
-                        # pm2 restart all
-                    '
-                """
+                sh '''
+                ssh -i /var/lib/jenkins/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@13.218.27.236 << 'EOF'
+                mkdir -p /home/ubuntu/fullstack-app
+                EOF
+
+                scp -i /var/lib/jenkins/.ssh/id_rsa -o StrictHostKeyChecking=no build.zip ubuntu@13.218.27.236:/home/ubuntu/fullstack-app/
+
+                ssh -i /var/lib/jenkins/.ssh/id_rsa -o StrictHostKeyChecking=no ubuntu@13.218.27.236 << 'EOF'
+                cd /home/ubuntu/fullstack-app
+                unzip -o build.zip
+                # Optional: restart your app
+                # pm2 restart all
+                EOF
+                '''
             }
         }
     }
