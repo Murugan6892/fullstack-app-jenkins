@@ -2,14 +2,14 @@ pipeline {
     agent any
 
     environment {
-        DEPLOY_SERVER = "ubuntu@your-server-ip"
+        DEPLOY_SERVER = "ubuntu@54.90.91.199"
         APP_DIR = "/var/www/fullstack-app"
     }
 
     stages {
         stage('Checkout Code') {
             steps {
-                git branch: 'main', url: 'https://github.com/yourusername/fullstack-app.git'
+                git branch: 'main', url: 'https://github.com/Murugan6892/fullstack-app-jenkins.git'
             }
         }
 
@@ -43,7 +43,7 @@ pipeline {
 
         stage('Deploy to Server') {
             steps {
-                sshagent(['your-ssh-credentials-id']) {
+                sshagent(['server-deploy-key']) {
                     sh """
                         scp build.zip $DEPLOY_SERVER:/tmp/
                         ssh $DEPLOY_SERVER '
